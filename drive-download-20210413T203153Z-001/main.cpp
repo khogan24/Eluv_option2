@@ -37,30 +37,45 @@ struct lcss
 */
 std::vector<bool> longestCommonSubstring(const std::vector<bool> & s1, const std::vector<bool> & s2, int & offset1, int & offset2, size_t & key)
 {
-	int table[s1.size()][s2.size()];
-	
-	// any srting of length 0 has no commonn substring with any other strings, so set those indicies to 0
-	for(int i = 0; i < s1.size(); ++i)
+	std::cout << "bollocs" << std::endl;
+	int x = s1.size();
+	int y = s2.size();
+	// allocate a table
+	// int[][] table; 
+
+	int **table = (int**)malloc(x * sizeof(int*));
+	for(int i = 0; i < y; i++)
 	{
-		table[i][0] = 0;
+	    table[i] = (int*)malloc(y * sizeof(int*));
 	}
-	for(int i = 0; i < s2.size(); ++i)
+
+
+	// any srting of length 0 has no commonn substring with any other strings, so set those indicies to 0
+	// fprintf(stderr, "s1.size :%d",x);
+	for(int i = 0; i < x; ++i)
 	{
 		table[0][i] = 0;
 	}
+	std::cout << "second" << std::endl;
+	for(int i = 0; i < y; ++i)
+	{
+		table[0][i] = 0;
+	}
+	std::cout << "after 2nd" << std::endl;
 
 	int s1_offset = 0, s1_temp = 0, s2_offset = 0, s2_temp = 0, len = 0, len_temp = 0;
 	
 	// loop through both string comapring elements
-	for(int s1_index = 0; s1_index < s1.size(); ++s1_index)
+	for(int s1_index = 1; s1_index < x; ++s1_index)
 	{
-		for(int s2_index = 0; s2_index < s2.size(); ++s2_index)
+		for(int s2_index = 1; s2_index < y; ++s2_index)
 		{
 			// a substring is only common if both strings contain the same substring of chars
 			// if any are not the same, the substring ends
 			if(s1[s1_index] == s2[s2_index])
 			{
 				// increment length of sub-string
+				// std::cout << s1_index << ":" << s2_index << std::endl;
 				table[s1_index][s2_index] = table[s1_index - 1][s2_index - 1] + 1;
 				len_temp = table[s1_index][s2_index];// record length
 
@@ -128,25 +143,26 @@ std::vector<bool> readFile( const char* path_to_file, int& success )
 }
 
 
+
 int main()
 {
 
 	// TODO add flags? maybe
+	char str[11];
 	int error = 0;
-	std::string s = "sample. ";
-	std::vector<std::string> fileNames = std::vector<std::string>(10); // list of filenmes
-	std::vector<std::vector<bool>> fileData = std::vector<std::vector<bool>>(fileNames.size()); // list of data in each file
-	lcss currentLongest = {
-							0,
-							std::vector<bool>(),
-							std::vector<std::pair<const char*, int>>(fileNames.size()),
-							0
-	};
-	for(int i = 0; i < fileNames.size(); ++i)
+	std::string s = "sample.";
+	std::vector<std::string> fileNames = std::vector<std::string>(); // list of filenmes
+	std::vector<std::vector<bool>>  *fileData = new std::vector<std::vector<bool>>(); // list of data in each file
+	lcss *currentLongest = new lcss;
+	for(int i = 1; i < 11; ++i)
 	{	
-		s.at(s.length()-1) = i;
-		fileData.push_back(readFile(s.c_str(), error));
-		if(error)
+		s = "sample.";
+		std::string fileNo = "";
+		std::sprintf(str,"%d", i);
+
+		std::cout << "str : " << (s + str) << std::endl;
+		fileData->push_back(readFile((s + str).c_str(), error));
+		if(error != 1)
 		{
 			//TDOD handle this better
 			std::cout<< "error encountered " << std::endl;
@@ -155,23 +171,32 @@ int main()
 		for(int j = 0; j < i -1 ; ++j)// find if any new lcss are made by the addition of the new file
 		{	int offset_i = 0, offset_j = 0;
 			size_t key = 0;
-			std::vector<bool> temp = longestCommonSubstring(fileData.at(i), fileData.at(j),offset_i, offset_j, key );
-			if(temp.size() > currentLongest.length)
+			std::vector<bool> temp = longestCommonSubstring(fileData->at(i-1), fileData->at(j),offset_i, offset_j, key );
+			if(temp.size() > currentLongest->length)
 			{
-				currentLongest.length = temp.size();
-				currentLongest.substring = std::vector<bool>(temp);
-				currentLongest.where = std::vector<std::pair<const char*,int>>();
+				currentLongest->length = temp.size();
+				currentLongest->substring = std::vector<bool>(temp);
+				currentLongest->where = std::vector<std::pair<const char*,int>>();
 				s.at(s.length()-1) = i;
-				currentLongest.where.push_back(std::make_pair(s.c_str(), offset_i));
+				currentLongest->where.push_back(std::make_pair(s.c_str(), offset_i));
 				s.at(s.length()-1) = j;
-				currentLongest.where.push_back(std::make_pair(s.c_str(), offset_j));
-				currentLongest.key = key;
+				currentLongest->where.push_back(std::make_pair(s.c_str(), offset_j));
+				currentLongest->key = key;
 			}
-			if(temp.size() == currentLongest.length && key == currentLongest.key)
+			if(temp.size() == currentLongest->length && key == currentLongest->key)
 			{
 				s.at(s.length()-1) = j;
-				currentLongest.where.push_back(std::make_pair(s.c_str(), offset_j));
+				currentLongest->where.push_back(std::make_pair(s.c_str(), offset_j));
 			}
 		}
 	}
+
+	std::cout << "lenght : " << currentLongest->length << " key : " << currentLongest->key << " # of files " << currentLongest->where.size() << std::endl;
+	std::cout << " substring : ";
+	for(int i = 0 ; i < currentLongest->substring.size(); ++i)
+	{
+		std::cout << " " << currentLongest->substring.at(i); 
+	}
+	delete fileData;
+	delete currentLongest;
 }
