@@ -5,6 +5,9 @@
 #include <string>
 #include <utility> // pair
 #include <bitset>
+#include <dirent.h>
+#include <sys/types.h>
+// #include <filesystem>
 
 
 #define MAX(a,b) (a <= b) ? a:b
@@ -37,7 +40,12 @@ struct lcss
 */
 std::vector<bool> longestCommonSubstring(const std::vector<bool> & s1, const std::vector<bool> & s2, int & offset1, int & offset2, size_t & key)
 {
-	std::cout << "bollocs" << std::endl;
+	if(!(s1.size() && s2.size()))// empty file
+	{
+		offset1 = -1;
+		offset2 = -1;
+		return std::vector<bool>();
+	}
 	int x = s1.size();
 	int y = s2.size();
 	// allocate a table
@@ -46,7 +54,7 @@ std::vector<bool> longestCommonSubstring(const std::vector<bool> & s1, const std
 	int **table = (int**)malloc(x * sizeof(int*));
 	for(int i = 0; i < y; i++)
 	{
-	    table[i] = (int*)malloc(y * sizeof(int*));
+	    table[i] = (int*)malloc(y * sizeof(int));
 	}
 
 
@@ -104,6 +112,12 @@ std::vector<bool> longestCommonSubstring(const std::vector<bool> & s1, const std
 		len = MAX(len, len_temp);
 	}
 
+	//free the mallocs
+	for(int i = 0; i < y; i++)
+	{
+	    free(table[i]);
+	}free(table);
+
 	offset1 = s1_offset;
 	offset2 = s2_offset;
 	std::vector<bool> returnVal = std::vector<bool>(s1.begin() + s1_offset, s1.begin() + (offset1 + len) );
@@ -123,7 +137,7 @@ std::vector<bool> readFile( const char* path_to_file, int& success )
 	std::ifstream file( path_to_file, std::ios::binary ) ; // open in binary mode
 	if(!file.good())
 	{
-		std::cout<< "No file " << path_to_file << " found, skipping..." << std::endl;
+		std::cout<< "No file '" << path_to_file << "' found, skipping..." << std::endl;
 		file.close();
 		success = 0;
 		return std::vector<bool>(); // return empty vector and try rest of files
@@ -144,59 +158,88 @@ std::vector<bool> readFile( const char* path_to_file, int& success )
 
 
 
-int main()
+// gets contents of folder as a list of filenames
+std::vector<char*> folderContents(char* folder)
 {
+	struct dirent *entry;
+	DIR *dir = opendir(folder);
 
-	// TODO add flags? maybe
-	char str[11];
-	int error = 0;
-	std::string s = "sample.";
-	std::vector<std::string> fileNames = std::vector<std::string>(); // list of filenmes
-	std::vector<std::vector<bool>>  *fileData = new std::vector<std::vector<bool>>(); // list of data in each file
-	lcss *currentLongest = new lcss;
-	for(int i = 1; i < 11; ++i)
-	{	
-		s = "sample.";
-		std::string fileNo = "";
-		std::sprintf(str,"%d", i);
-
-		std::cout << "str : " << (s + str) << std::endl;
-		fileData->push_back(readFile((s + str).c_str(), error));
-		if(error != 1)
-		{
-			//TDOD handle this better
-			std::cout<< "error encountered " << std::endl;
-			return 0;
-		}
-		for(int j = 0; j < i -1 ; ++j)// find if any new lcss are made by the addition of the new file
-		{	int offset_i = 0, offset_j = 0;
-			size_t key = 0;
-			std::vector<bool> temp = longestCommonSubstring(fileData->at(i-1), fileData->at(j),offset_i, offset_j, key );
-			if(temp.size() > currentLongest->length)
-			{
-				currentLongest->length = temp.size();
-				currentLongest->substring = std::vector<bool>(temp);
-				currentLongest->where = std::vector<std::pair<const char*,int>>();
-				s.at(s.length()-1) = i;
-				currentLongest->where.push_back(std::make_pair(s.c_str(), offset_i));
-				s.at(s.length()-1) = j;
-				currentLongest->where.push_back(std::make_pair(s.c_str(), offset_j));
-				currentLongest->key = key;
-			}
-			if(temp.size() == currentLongest->length && key == currentLongest->key)
-			{
-				s.at(s.length()-1) = j;
-				currentLongest->where.push_back(std::make_pair(s.c_str(), offset_j));
-			}
-		}
-	}
-
-	std::cout << "lenght : " << currentLongest->length << " key : " << currentLongest->key << " # of files " << currentLongest->where.size() << std::endl;
-	std::cout << " substring : ";
-	for(int i = 0 ; i < currentLongest->substring.size(); ++i)
+	if (dir == NULL) 
 	{
-		std::cout << " " << currentLongest->substring.at(i); 
+		fprintf(stderr, "directory %s not found", folder);
+		return std::vector<char*>();
 	}
-	delete fileData;
-	delete currentLongest;
+
+	std::vector< char* > contents = std::vector<char*>();
+	while ((entry = readdir(dir)) != NULL) 
+	{
+		std::cout << entry->d_name << std::endl;
+		contents.push_back(entry->d_name);
+	}
+	closedir(dir);
+	return contents;
+}
+
+int main(int argc, char** argv)
+{
+	if(argc < 2)
+	{
+		fprintf(stderr, " error no folder given \n");
+		fprintf(stderr, "usage is ./lcss <foldername(s)>\n");
+		return 1;
+	}
+	char* folderName = argv[1];
+	printf("opening folder: %s \n", folderName);
+	std::vector<char*> dir = folderContents(folderName);
+	if(dir.empty())
+	{
+		fprintf(stderr, "empty folder, exiting \n");
+		return 1;
+	}
+	printf("FOLDER CONTENTS\n");
+	for(char* i : dir)
+	{
+		printf("%s\n", i);
+	}
+	// TODO add flags? maybe
+	lcss currentLongest = {
+		0,std::vector<bool>(),std::vector<std::pair<const char*, int>>() ,(unsigned long) 0
+	};
+	int offset1 = 0, offset2 = 0, error1 = 0, error2 = 0;
+	size_t key = 0;
+	for(int i = 0; i < dir.size(); ++i)
+	{	
+		for(int j = 0; j < i -1 ; ++j)// find if any new lcss are made by the addition of the new file
+		{
+			std::string s1 = dir[i];
+			std::string s2 = dir[j];
+			std::cout << "s1: " << s1 << " s2: " << s2 << std::endl;
+			std::vector<bool> curSubString = longestCommonSubstring(readFile((folderName + s1).c_str(), error1), readFile((folderName + s2).c_str(), error2), offset1, offset2, key);
+			if(error1 && error2)
+			{
+				fprintf(stderr, "there was an error in opening either %s or %s \n ... exiting\n", s1,s2);
+				return 1;
+			}
+			if(key == currentLongest.key ) //already seen string
+			{
+				currentLongest.where.push_back(std::make_pair(s1.c_str(),offset2));// change to hashmap? so only one er file entry.
+			}
+			else if(curSubString.size() > currentLongest.substring.size())// new longest
+			{
+				currentLongest.substring = curSubString;
+				currentLongest.key = key;
+				currentLongest.length = curSubString.size();
+				currentLongest.where = std::vector<std::pair<const char*,int>>();
+				currentLongest.where.push_back(std::make_pair(s1.c_str(),offset1));
+				currentLongest.where.push_back(std::make_pair(s2.c_str(),offset2));
+			}
+		}
+	}
+
+	std::cout << "lenght : " << currentLongest.length << " key : " << currentLongest.key << " # of files " << currentLongest.where.size() << std::endl;
+	std::cout << " substring : ";
+	for(int i = 0 ; i < currentLongest.substring.size(); ++i)
+	{
+		std::cout << " " << currentLongest.substring.at(i); 
+	}
 }
