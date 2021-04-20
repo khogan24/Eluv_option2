@@ -1,5 +1,2 @@
 build: main.cpp
-	g++  -g main.cpp
-
-run: a.out
-	./a.out
+	g++ -std=c++17 -g -o lcss main.cpp

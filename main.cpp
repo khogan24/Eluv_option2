@@ -5,9 +5,8 @@
 #include <string>
 #include <utility> // pair
 #include <bitset>
-#include <dirent.h>
 #include <sys/types.h>
-// #include <filesystem>
+#include <filesystem> // folder reading
 
 
 #define MAX(a,b) (a <= b) ? a:b
@@ -25,11 +24,16 @@ struct lcss
 {
 	int length;
 	std::vector<bool> substring;
-	std::vector<std::pair<const char*, int>> where;
+	std::vector<std::pair<const std::string, int>> where;
 	unsigned long key;
 };
 
-
+void swap(void* a, void*b)
+{
+	void* temp = a;
+	b = a;
+	a = temp;
+}
 
 /*
 	finds and returns the longest common substring between 2 lists
@@ -38,38 +42,38 @@ struct lcss
 		the only way for a binary file to do this is if one is all 1 and the other is all 0
 	if 2 substring are of equal lenght, the first one found is returned
 */
-std::vector<bool> longestCommonSubstring(const std::vector<bool> & s1, const std::vector<bool> & s2, int & offset1, int & offset2, size_t & key)
+std::vector<bool> longestCommonSubstring(std::vector<bool> * vec1, std::vector<bool> * vec2, int & offset1, int & offset2, size_t & key)
 {
-	if(!(s1.size() && s2.size()))// empty file
+	int x = vec1->size();
+	int y = vec2->size();
+	if(!(x && y))// empty file
 	{
 		offset1 = -1;
 		offset2 = -1;
 		return std::vector<bool>();
 	}
-	int x = s1.size();
-	int y = s2.size();
+	
+	std::vector<bool>* s1 = vec1, *s2 = vec2;
+	if(y>x)
+	{
+		swap((void*)x,(void*)y);
+		swap((void*)s1,(void*)s2);
+	}
 	// allocate a table
 	// int[][] table; 
 
 	int **table = (int**)malloc(x * sizeof(int*));
-	for(int i = 0; i < y; i++)
+	for(int i = 0; i < x; i++)
 	{
 	    table[i] = (int*)malloc(y * sizeof(int));
+		table[i][0] = 0; // segfaults here consistently on sample.1 and sample.2 at i values of about 30181 and x of 30720 
 	}
 
-
-	// any srting of length 0 has no commonn substring with any other strings, so set those indicies to 0
-	// fprintf(stderr, "s1.size :%d",x);
-	for(int i = 0; i < x; ++i)
-	{
-		table[0][i] = 0;
-	}
-	std::cout << "second" << std::endl;
+	// any string of length 0 has no commonn substring with any other strings, so set those indicies to 0
 	for(int i = 0; i < y; ++i)
 	{
 		table[0][i] = 0;
 	}
-	std::cout << "after 2nd" << std::endl;
 
 	int s1_offset = 0, s1_temp = 0, s2_offset = 0, s2_temp = 0, len = 0, len_temp = 0;
 	
@@ -80,50 +84,47 @@ std::vector<bool> longestCommonSubstring(const std::vector<bool> & s1, const std
 		{
 			// a substring is only common if both strings contain the same substring of chars
 			// if any are not the same, the substring ends
-			if(s1[s1_index] == s2[s2_index])
+			if(s1->at(s1_index) == s2->at(s2_index))
 			{
-				// increment length of sub-string
-				// std::cout << s1_index << ":" << s2_index << std::endl;
 				table[s1_index][s2_index] = table[s1_index - 1][s2_index - 1] + 1;
-				len_temp = table[s1_index][s2_index];// record length
-
-				// upon reaching a new substring, record the offsets
-				if(s1_temp == 0) s1_temp = s1_index;
-				if(s2_temp == 0) s2_temp = s2_index;
-		
+				len_temp = table[s1_index][s2_index];
+				if(s1_temp == 0)
+				{
+					s1_temp = s1_index;
+				}
+				if(s2_temp == 0)
+				{
+					s2_temp = s2_index;
+				}
 			}
 			else
 			{
-				// mismatch, set element to 0
+				//reset
 				table[s1_index][s2_index] = 0;
-				// we will see a mismatch at the end of the substring, if new substring is longer, update values
-				if(len_temp > len)
-				{
-					s1_offset = s1_temp;
-					s2_offset = s2_temp;
-					len = len_temp;
-				}
-				// reset
 				len_temp = 0;
 				s1_temp = 0;
 				s2_temp = 0;
 			}
+			if(len_temp > len)//
+			{
+				len = len_temp;
+				s1_offset = s1_temp;
+				s2_offset = s2_temp;
+			}
 		}
-		len = MAX(len, len_temp);
 	}
 
 	//free the mallocs
-	for(int i = 0; i < y; i++)
+	for(int i = 0; i < x; ++i)
 	{
 	    free(table[i]);
 	}free(table);
 
 	offset1 = s1_offset;
 	offset2 = s2_offset;
-	std::vector<bool> returnVal = std::vector<bool>(s1.begin() + s1_offset, s1.begin() + (offset1 + len) );
+	std::vector<bool> returnVal = std::vector<bool>(s1->begin() + s1_offset, s1->begin() + (offset1 + len) );
 	key = std::hash<std::vector<bool>>{}(returnVal);
 	return returnVal;
-
 }
 
 /*
@@ -132,7 +133,7 @@ std::vector<bool> longestCommonSubstring(const std::vector<bool> & s1, const std
 	returns empty vector if no such file is found
 	sets the success value to 1 if read properly, and 0 on error
 */
-std::vector<bool> readFile( const char* path_to_file, int& success )
+std::vector<bool>* readFile( const std::string path_to_file, int& success )
 {
 	std::ifstream file( path_to_file, std::ios::binary ) ; // open in binary mode
 	if(!file.good())
@@ -140,14 +141,14 @@ std::vector<bool> readFile( const char* path_to_file, int& success )
 		std::cout<< "No file '" << path_to_file << "' found, skipping..." << std::endl;
 		file.close();
 		success = 0;
-		return std::vector<bool>(); // return empty vector and try rest of files
+		return nullptr;//std::vector<bool>(); // return empty vector and try rest of files
 	}
 
-    std::vector<bool> bitString = std::vector<bool>() ;// small size
+    std::vector<bool>* bitString = new std::vector<bool>() ;
     char c ;
     while( file.get(c) ) // read byte by byte
 	{
-		bitString.push_back(  (unsigned int)(c) ); // cast to an u_int then send to list as bool
+		bitString->push_back(  (unsigned int)(c) ); // cast to an u_int then send to list as bool
 	}
     
 
@@ -158,26 +159,20 @@ std::vector<bool> readFile( const char* path_to_file, int& success )
 
 
 
-// gets contents of folder as a list of filenames
-std::vector<char*> folderContents(char* folder)
+// returns contents of folder as a list of filenames
+std::vector<std::string> folderContents(std::string folder)
 {
-	struct dirent *entry;
-	DIR *dir = opendir(folder);
-
-	if (dir == NULL) 
+	if(!std::filesystem::is_directory(folder))
 	{
-		fprintf(stderr, "directory %s not found", folder);
-		return std::vector<char*>();
+		std::cout << "No folder '" << folder << "' found, exiting." << std::endl;
+		exit(1);
 	}
-
-	std::vector< char* > contents = std::vector<char*>();
-	while ((entry = readdir(dir)) != NULL) 
+	std::vector<std::string> list;
+	for(const auto & entry : std::filesystem::directory_iterator(folder))
 	{
-		std::cout << entry->d_name << std::endl;
-		contents.push_back(entry->d_name);
+		list.push_back( entry.path().string());
 	}
-	closedir(dir);
-	return contents;
+	return list;
 }
 
 int main(int argc, char** argv)
@@ -185,60 +180,63 @@ int main(int argc, char** argv)
 	if(argc < 2)
 	{
 		fprintf(stderr, " error no folder given \n");
-		fprintf(stderr, "usage is ./lcss <foldername(s)>\n");
+		fprintf(stderr, "usage is lcss <foldername>\n");
 		return 1;
 	}
-	char* folderName = argv[1];
-	printf("opening folder: %s \n", folderName);
-	std::vector<char*> dir = folderContents(folderName);
+	std::cout<< "opening folder: " << argv[1] << std::endl;
+	std::vector<std::string> dir = folderContents(argv[1]);
 	if(dir.empty())
 	{
 		fprintf(stderr, "empty folder, exiting \n");
 		return 1;
 	}
 	printf("FOLDER CONTENTS\n");
-	for(char* i : dir)
+	for(std::string i : dir)
 	{
-		printf("%s\n", i);
+		std::cout << i << std::endl;
 	}
-	// TODO add flags? maybe
 	lcss currentLongest = {
-		0,std::vector<bool>(),std::vector<std::pair<const char*, int>>() ,(unsigned long) 0
+		0,std::vector<bool>(),std::vector<std::pair<const std::string, int>>() ,(unsigned long) 0
 	};
-	int offset1 = 0, offset2 = 0, error1 = 0, error2 = 0;
+	int offset1 = 0, offset2 = 0, success1 = 0, success2 = 0;
 	size_t key = 0;
-	for(int i = 0; i < dir.size(); ++i)
+	for(size_t i = 0; i < dir.size(); ++i)
 	{	
-		for(int j = 0; j < i -1 ; ++j)// find if any new lcss are made by the addition of the new file
+		std::string s1 = dir[i];
+		std::vector<bool> *file1 = readFile(s1, success1);
+		for(size_t j = 0; j < i; ++j)// find if any new lcss are made by the addition of the new file
 		{
-			std::string s1 = dir[i];
+			
 			std::string s2 = dir[j];
-			std::cout << "s1: " << s1 << " s2: " << s2 << std::endl;
-			std::vector<bool> curSubString = longestCommonSubstring(readFile((folderName + s1).c_str(), error1), readFile((folderName + s2).c_str(), error2), offset1, offset2, key);
-			if(error1 && error2)
+			std::cout << "s1: " << i << " " << s1 << " s2: " << j <<" " << s2 << std::endl;
+			
+			std::vector<bool> *file2 = readFile(s2, success2);
+			if(!success1 && !success2)
 			{
-				fprintf(stderr, "there was an error in opening either %s or %s \n ... exiting\n", s1,s2);
+				std::cout<<"there was an error in opening either " << s1 << " or " << s2 << std::endl;
 				return 1;
 			}
+			std::vector<bool> curSubString = longestCommonSubstring(file1, file2, offset1, offset2, key);
+			
 			if(key == currentLongest.key ) //already seen string
 			{
-				currentLongest.where.push_back(std::make_pair(s1.c_str(),offset2));// change to hashmap? so only one er file entry.
+				currentLongest.where.push_back(std::make_pair(s1,offset2));// change to hashmap? so only one er file entry.
 			}
 			else if(curSubString.size() > currentLongest.substring.size())// new longest
 			{
 				currentLongest.substring = curSubString;
 				currentLongest.key = key;
 				currentLongest.length = curSubString.size();
-				currentLongest.where = std::vector<std::pair<const char*,int>>();
-				currentLongest.where.push_back(std::make_pair(s1.c_str(),offset1));
-				currentLongest.where.push_back(std::make_pair(s2.c_str(),offset2));
+				currentLongest.where = std::vector<std::pair<const std::string,int>>();
+				currentLongest.where.push_back(std::make_pair(s1,offset1));
+				currentLongest.where.push_back(std::make_pair(s2,offset2));
 			}
 		}
 	}
 
 	std::cout << "lenght : " << currentLongest.length << " key : " << currentLongest.key << " # of files " << currentLongest.where.size() << std::endl;
 	std::cout << " substring : ";
-	for(int i = 0 ; i < currentLongest.substring.size(); ++i)
+	for(size_t i = 0 ; i < currentLongest.substring.size(); ++i)
 	{
 		std::cout << " " << currentLongest.substring.at(i); 
 	}
