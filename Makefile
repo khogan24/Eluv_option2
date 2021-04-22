@@ -1,2 +1,2 @@
 build: main.cpp
-	g++ -std=c++17 -g -o lcss main.cpp
+	g++ -O2 -std=c++17 -lstdc++fs -g -o lcss main.cpp

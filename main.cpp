@@ -13,8 +13,8 @@
 // this struct holds the byte array of the file, the file's name, and its index in the larger file_t array
 struct file_t
 {
-	char* name;
-	std::vector<bool> data;
+	std::string name;
+	std::vector<int> data;
 };
 
 // the current longest substring found in multiple files
@@ -23,7 +23,7 @@ struct file_t
 struct lcss
 {
 	int length;
-	std::vector<bool> substring;
+	std::vector<int> substring;
 	std::vector<std::pair<const std::string, int>> where;
 	unsigned long key;
 };
@@ -35,6 +35,19 @@ void swap(void* a, void*b)
 	a = temp;
 }
 
+
+
+//
+size_t hashVec(std::vector<int> v)
+{
+	size_t seed = v.size();
+	for(auto& i : v)
+	{
+		seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	}
+	return seed;
+}
+
 /*
 	finds and returns the longest common substring between 2 lists
 	sets offset1 and offset2 to the respective locations of the first charachter in the strings
@@ -42,7 +55,7 @@ void swap(void* a, void*b)
 		the only way for a binary file to do this is if one is all 1 and the other is all 0
 	if 2 substring are of equal lenght, the first one found is returned
 */
-std::vector<bool> longestCommonSubstring(std::vector<bool> * vec1, std::vector<bool> * vec2, int & offset1, int & offset2, size_t & key)
+std::vector<int> longestCommonSubstring(std::vector<int> * vec1, std::vector<int> * vec2, int & offset1, int & offset2, size_t & key)
 {
 	int x = vec1->size();
 	int y = vec2->size();
@@ -50,15 +63,15 @@ std::vector<bool> longestCommonSubstring(std::vector<bool> * vec1, std::vector<b
 	{
 		offset1 = -1;
 		offset2 = -1;
-		return std::vector<bool>();
+		return std::vector<int>();
 	}
 	
-	std::vector<bool>* s1 = vec1, *s2 = vec2;
-	if(y>x)
-	{
-		swap((void*)x,(void*)y);
-		swap((void*)s1,(void*)s2);
-	}
+	std::vector<int>* s1 = vec1, *s2 = vec2;
+	// if(y>x)
+	// {
+	// 	swap((void*)x,(void*)y);
+	// 	swap((void*)s1,(void*)s2);
+	// }
 	// allocate a table
 	// int[][] table; 
 
@@ -122,18 +135,18 @@ std::vector<bool> longestCommonSubstring(std::vector<bool> * vec1, std::vector<b
 
 	offset1 = s1_offset;
 	offset2 = s2_offset;
-	std::vector<bool> returnVal = std::vector<bool>(s1->begin() + s1_offset, s1->begin() + (offset1 + len) );
-	key = std::hash<std::vector<bool>>{}(returnVal);
+	std::vector<int> returnVal = std::vector<int>(s1->begin() + s1_offset, s1->begin() + (offset1 + len) );
+	key = hashVec(returnVal);
 	return returnVal;
 }
 
 /*
 	Opens and reads binary file at path_to_file 
-	returns contents in a vector<bool>
+	returns contents in a vector<int>
 	returns empty vector if no such file is found
 	sets the success value to 1 if read properly, and 0 on error
 */
-std::vector<bool>* readFile( const std::string path_to_file, int& success )
+std::vector<int> readFile( const std::string path_to_file, int& success )
 {
 	std::ifstream file( path_to_file, std::ios::binary ) ; // open in binary mode
 	if(!file.good())
@@ -141,36 +154,45 @@ std::vector<bool>* readFile( const std::string path_to_file, int& success )
 		std::cout<< "No file '" << path_to_file << "' found, skipping..." << std::endl;
 		file.close();
 		success = 0;
-		return nullptr;//std::vector<bool>(); // return empty vector and try rest of files
+		return std::vector<int>(); // return empty vector and try rest of files
 	}
 
-    std::vector<bool>* bitString = new std::vector<bool>() ;
+    std::vector<int> bitString = std::vector<int>() ;
     char c ;
     while( file.get(c) ) // read byte by byte
 	{
-		bitString->push_back(  (unsigned int)(c) ); // cast to an u_int then send to list as bool
+		bitString.push_back(  (unsigned int)(c) ); // cast to an u_int then send to list as bool
 	}
-    
-
 	file.close();
 	success = 1;
+	std::cout << " file size: " << bitString.size() << std::endl;
     return bitString ;
 }
 
 
 
-// returns contents of folder as a list of filenames
-std::vector<std::string> folderContents(std::string folder)
+// returns contents of all files in a folder as a list of said contents
+std::vector<file_t>* folderContents(std::string folder)
 {
 	if(!std::filesystem::is_directory(folder))
 	{
 		std::cout << "No folder '" << folder << "' found, exiting." << std::endl;
 		exit(1);
 	}
-	std::vector<std::string> list;
+	int success1 = 0;
+	std::vector<file_t>* list = new std::vector<file_t>();
+	printf("FOLDER CONTENTS\n");
 	for(const auto & entry : std::filesystem::directory_iterator(folder))
 	{
-		list.push_back( entry.path().string());
+		std::cout << entry.path().string() << std::endl;
+		file_t temp;
+		temp.name = entry.path().string();
+		temp.data = readFile(temp.name, success1);
+		list->push_back( temp);
+		if(!success1)
+		{
+			std::cout << "Error opening " << entry.path().string() << std::endl;
+		}
 	}
 	return list;
 }
@@ -184,43 +206,32 @@ int main(int argc, char** argv)
 		return 1;
 	}
 	std::cout<< "opening folder: " << argv[1] << std::endl;
-	std::vector<std::string> dir = folderContents(argv[1]);
-	if(dir.empty())
+	std::vector<file_t>* dir = folderContents(argv[1]);
+	if(dir->empty())
 	{
 		fprintf(stderr, "empty folder, exiting \n");
 		return 1;
 	}
-	printf("FOLDER CONTENTS\n");
-	for(std::string i : dir)
-	{
-		std::cout << i << std::endl;
-	}
 	lcss currentLongest = {
-		0,std::vector<bool>(),std::vector<std::pair<const std::string, int>>() ,(unsigned long) 0
+		0,std::vector<int>(),std::vector<std::pair<const std::string, int>>() ,(unsigned long) 0
 	};
-	int offset1 = 0, offset2 = 0, success1 = 0, success2 = 0;
+	int offset1 = 0, offset2 = 0, success2 = 0;
 	size_t key = 0;
-	for(size_t i = 0; i < dir.size(); ++i)
+	for(size_t i = 0; i < dir->size(); ++i)
 	{	
-		std::string s1 = dir[i];
-		std::vector<bool> *file1 = readFile(s1, success1);
+		
+		std::vector<int> *file1 = &(dir->at(i).data);
 		for(size_t j = 0; j < i; ++j)// find if any new lcss are made by the addition of the new file
 		{
 			
-			std::string s2 = dir[j];
-			std::cout << "s1: " << i << " " << s1 << " s2: " << j <<" " << s2 << std::endl;
-			
-			std::vector<bool> *file2 = readFile(s2, success2);
-			if(!success1 && !success2)
-			{
-				std::cout<<"there was an error in opening either " << s1 << " or " << s2 << std::endl;
-				return 1;
-			}
-			std::vector<bool> curSubString = longestCommonSubstring(file1, file2, offset1, offset2, key);
+			std::vector<int> *file2 = &(dir->at(i).data);
+			std::cout << i << " - " << j << std::endl;
+
+			std::vector<int> curSubString = longestCommonSubstring(file1, file2, offset1, offset2, key);
 			
 			if(key == currentLongest.key ) //already seen string
 			{
-				currentLongest.where.push_back(std::make_pair(s1,offset2));// change to hashmap? so only one er file entry.
+				currentLongest.where.push_back(std::make_pair( dir->at(i).name ,offset2));// change to hashmap? so only one er file entry.
 			}
 			else if(curSubString.size() > currentLongest.substring.size())// new longest
 			{
@@ -228,8 +239,8 @@ int main(int argc, char** argv)
 				currentLongest.key = key;
 				currentLongest.length = curSubString.size();
 				currentLongest.where = std::vector<std::pair<const std::string,int>>();
-				currentLongest.where.push_back(std::make_pair(s1,offset1));
-				currentLongest.where.push_back(std::make_pair(s2,offset2));
+				currentLongest.where.push_back(std::make_pair(dir->at(i).name,offset1));
+				currentLongest.where.push_back(std::make_pair(dir->at(j).name,offset2));
 			}
 		}
 	}
