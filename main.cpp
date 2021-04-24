@@ -10,6 +10,16 @@
 
 
 #define MAX(a,b) (a <= b) ? a:b
+
+// size_t** table;// i make this global to minimize malloc/free calls
+
+struct TABLE
+{
+	size_t** arr;
+	size_t x,y;
+	int init = 0;
+} table;
+
 // this struct holds the byte array of the file, the file's name, and its index in the larger file_t array
 struct file_t
 {
@@ -37,6 +47,7 @@ void swap(void* a, void*b)
 
 
 
+
 //
 size_t hashVec(std::vector<int> v)
 {
@@ -46,6 +57,49 @@ size_t hashVec(std::vector<int> v)
 		seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 	}
 	return seed;
+}
+
+void freeTable()
+{
+	for(int i = 0; i < table.x; ++i)
+	{
+	    free(table[i]);
+	}free(table);
+}
+
+// resize table
+void growTable(int x,int y)
+{
+	table.arr = (size_t**)malloc(x * sizeof(size_t*));
+	for(int i = 0; i < x; ++i)
+	{
+		table.arr[i] = (size_t*)malloc(y * size(size_t));
+	}
+}
+
+// sets the global var table to be ready for use in the lcss algoritm
+void initTable(int x, int y)
+{
+	if(!table.init)
+	{
+		table.x = x;
+		table.y = y;
+		growTable(x,y);
+	}
+	if(x > table.x || y > table.y)// need to grow
+	{
+		freeTable();
+		growTable(x,y);
+	}
+	for( int i = 0; i < x; ++i)
+	{
+		table.arr[i][0] = 0;
+	}
+	for( int i = 0; i < y; ++i)
+	{
+		table.arr[0][i] = 0;
+	}
+
 }
 
 /*
@@ -67,26 +121,7 @@ std::vector<int> longestCommonSubstring(std::vector<int> * vec1, std::vector<int
 	}
 	
 	std::vector<int>* s1 = vec1, *s2 = vec2;
-	// if(y>x)
-	// {
-	// 	swap((void*)x,(void*)y);
-	// 	swap((void*)s1,(void*)s2);
-	// }
-	// allocate a table
-	// int[][] table; 
-
-	int **table = (int**)malloc(x * sizeof(int*));
-	for(int i = 0; i < x; i++)
-	{
-	    table[i] = (int*)malloc(y * sizeof(int));
-		table[i][0] = 0; // segfaults here consistently on sample.1 and sample.2 at i values of about 30181 and x of 30720 
-	}
-
-	// any string of length 0 has no commonn substring with any other strings, so set those indicies to 0
-	for(int i = 0; i < y; ++i)
-	{
-		table[0][i] = 0;
-	}
+	initTable(x,y);
 
 	int s1_offset = 0, s1_temp = 0, s2_offset = 0, s2_temp = 0, len = 0, len_temp = 0;
 	
@@ -99,7 +134,7 @@ std::vector<int> longestCommonSubstring(std::vector<int> * vec1, std::vector<int
 			// if any are not the same, the substring ends
 			if(s1->at(s1_index) == s2->at(s2_index))
 			{
-				table[s1_index][s2_index] = table[s1_index - 1][s2_index - 1] + 1;
+				table.arr[s1_index][s2_index] = table.arr[s1_index - 1][s2_index - 1] + 1;
 				len_temp = table[s1_index][s2_index];
 				if(s1_temp == 0)
 				{
@@ -113,7 +148,7 @@ std::vector<int> longestCommonSubstring(std::vector<int> * vec1, std::vector<int
 			else
 			{
 				//reset
-				table[s1_index][s2_index] = 0;
+				table.arr[s1_index][s2_index] = 0;
 				len_temp = 0;
 				s1_temp = 0;
 				s2_temp = 0;
@@ -128,10 +163,7 @@ std::vector<int> longestCommonSubstring(std::vector<int> * vec1, std::vector<int
 	}
 
 	//free the mallocs
-	for(int i = 0; i < x; ++i)
-	{
-	    free(table[i]);
-	}free(table);
+	freeTable();
 
 	offset1 = s1_offset;
 	offset2 = s2_offset;
