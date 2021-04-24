@@ -15,7 +15,7 @@
 
 struct TABLE
 {
-	size_t** arr;
+	u_int** arr;
 	size_t x,y;
 	int init = 0;
 } table;
@@ -70,10 +70,10 @@ void freeTable()
 // resize table
 void growTable(int x,int y)
 {
-	table.arr = (size_t**)malloc(x * sizeof(size_t*));
+	table.arr = (u_int**)malloc(x * sizeof(siu_intze_t*));
 	for(int i = 0; i < x; ++i)
 	{
-		table.arr[i] = (size_t*)malloc(y * sizeof(size_t));
+		table.arr[i] = (u_int*)malloc(y * sizeof(u_int));
 	}
 }
 
