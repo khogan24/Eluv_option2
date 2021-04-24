@@ -63,8 +63,8 @@ void freeTable()
 {
 	for(int i = 0; i < table.x; ++i)
 	{
-	    free(table[i]);
-	}free(table);
+	    free(table.arr[i]);
+	}free(table.arr);
 }
 
 // resize table
@@ -73,7 +73,7 @@ void growTable(int x,int y)
 	table.arr = (size_t**)malloc(x * sizeof(size_t*));
 	for(int i = 0; i < x; ++i)
 	{
-		table.arr[i] = (size_t*)malloc(y * size(size_t));
+		table.arr[i] = (size_t*)malloc(y * sizeof(size_t));
 	}
 }
 
@@ -135,7 +135,7 @@ std::vector<int> longestCommonSubstring(std::vector<int> * vec1, std::vector<int
 			if(s1->at(s1_index) == s2->at(s2_index))
 			{
 				table.arr[s1_index][s2_index] = table.arr[s1_index - 1][s2_index - 1] + 1;
-				len_temp = table[s1_index][s2_index];
+				len_temp = table.arr[s1_index][s2_index];
 				if(s1_temp == 0)
 				{
 					s1_temp = s1_index;
