@@ -3,7 +3,7 @@ Finding the longest common substring between a number of files.
 
 Use : 
 win10 : lcss.exe "foldername"
-linux ./lcss "foldername"
+linux : ./lcss "foldername"
 
 lcss will try to examine every file in the given folder
 
