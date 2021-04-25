@@ -1,7 +1,8 @@
 # Eluv_option2
 Finding the longest common substring between a number of files.
 
-Use : lcss.exe <foldername>
+Use : 
+win10 : lcss.exe <foldername>
 linux ./lcss <foldername>
 
 lcss will try to examine every file in the given folder
