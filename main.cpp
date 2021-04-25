@@ -262,13 +262,12 @@ int main(int argc, char** argv)
 		}
 	}
 
-	// std::cout << "lenght : " << currentLongest.length << " key : " << currentLongest.key << " # of files " << currentLongest.where.size() << std::endl;
 	std::cout << " substring : ";
 	for(size_t i = 0 ; i < currentLongest.substring.size(); ++i)
 	{
 		printBinary(currentLongest.substring.at(i)); //
-		// std:: cout << toBinary(currentLongest.substring.at(i)) <<" ";
 	}
+	
 	std::cout << " found at:" << std::endl;
 	for(auto i : currentLongest.where)
 	{
